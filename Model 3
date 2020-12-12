@@ -1,0 +1,129 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+
+import keras
+from keras.models import Sequential
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
+from keras.layers import Flatten
+from keras.layers import Dense
+from keras.preprocessing.image import ImageDataGenerator, load_img
+from sklearn.metrics import classification_report, confusion_matrix
+from keras.layers import LeakyReLU
+import tensorflow as tf
+from keras import metrics
+
+
+# Building CNN
+
+cnn = Sequential()
+
+# Convolution
+cnn.add(Conv2D(32, (3, 3), activation="sigmoid", input_shape=(64, 64, 3)))
+
+# Pooling
+cnn.add(MaxPooling2D(pool_size = (2, 2)))
+
+# 2nd Convolution
+cnn.add(Conv2D(32, (3, 3), activation="sigmoid"))
+
+# 2nd Pooling layer
+cnn.add(MaxPooling2D(pool_size = (2, 2)))
+
+
+# Flatten the layer
+cnn.add(Flatten())
+
+# Fully Connected Layers
+cnn.add(Dense(activation = 'relu', units = 128))
+cnn.add(Dense(activation = 'sigmoid', units = 1))
+
+# Compile the Neural network
+
+METRICS = [
+                'accuracy',
+                tf.keras.metrics.Precision(name='precision'),
+                tf.keras.metrics.Recall(name='recall')
+        ] 
+
+cnn.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = METRICS)
+
+
+# Fitting the CNN to the images
+
+trainDataGenerator = ImageDataGenerator(rescale = 1./255, shear_range = 0.2, zoom_range = 0.2, horizontal_flip = True)
+
+testDataGenerator = ImageDataGenerator(rescale = 1./255)
+
+# Reducing the image size to make it more managable
+trainingData = trainDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/train', target_size = (64, 64), batch_size = 32, class_mode = 'binary')
+
+validationData = testDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/val', target_size=(64, 64), batch_size=32, class_mode='binary')
+
+testData = testDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/test', target_size = (64, 64), batch_size = 32, class_mode = 'binary')
+
+cnn.summary()
+
+cnn_model = cnn.fit(trainingData, steps_per_epoch = 100, epochs = 15, validation_data = validationData, validation_steps = 600)
+
+test_accu = cnn.evaluate(testData,steps=624)
+
+print('The testing accuracy is :',test_accu[1]*100, '%')
+from mlxtend.plotting import plot_confusion_matrix
+pred = cnn.predict(testData, batch_size = 32, verbose = 1)
+predicted = np.argmax(pred, axis = 1)
+matrix = confusion_matrix(testData.labels, predicted)
+fig, ax = plot_confusion_matrix(conf_mat = matrix ,  figsize = (5, 5))
+plt.show()
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Building CNN Leaky ReLU version
+
+cnn2 = Sequential()
+
+# Convolution
+cnn2.add(Conv2D(32, (3, 3), input_shape=(64, 64, 3)))
+cnn2.add(LeakyReLU(0.1))
+
+# Pooling
+cnn2.add(MaxPooling2D(pool_size = (2, 2)))
+
+# 2nd Convolution
+cnn2.add(Conv2D(32, (3, 3)))
+cnn2.add(LeakyReLU(0.1))
+
+# 2nd Pooling layer
+cnn2.add(MaxPooling2D(pool_size = (2, 2)))
+
+# Flatten the layer
+cnn2.add(Flatten())
+
+# Fully Connected Layers
+cnn2.add(Dense(activation = 'relu', units = 128))
+cnn2.add(Dense(activation = 'sigmoid', units = 1))
+
+# Compile the Neural network
+cnn2.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+
+# Fitting the CNN to the images
+
+trainDataGenerator = ImageDataGenerator(rescale = 1./255, shear_range = 0.2, zoom_range = 0.2, horizontal_flip = True)
+
+testDataGenerator = ImageDataGenerator(rescale = 1./255)
+
+# Reducing the image size to make it more managable
+trainingData = trainDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/train', target_size = (64, 64), batch_size = 32, class_mode = 'binary')
+
+validationData = testDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/val', target_size=(64, 64), batch_size=32, class_mode='binary')
+
+testData = testDataGenerator.flow_from_directory('drive/MyDrive/xray/chest_xray/test', target_size = (64, 64), batch_size = 32, class_mode = 'binary')
+
+
+cnn2.summary()
+
+cnn_model = cnn2.fit(trainingData, steps_per_epoch = 100, epochs = 15, validation_data = validationData, validation_steps = 600)
+
+test_accu = cnn2.evaluate(testData,steps=624)
